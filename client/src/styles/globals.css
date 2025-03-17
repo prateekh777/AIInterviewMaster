@@ -1,0 +1,16 @@
+/* Add these styles for the Vapi container */
+.vapi-container {
+  font-family: monospace;
+  min-height: 100%;
+  overflow: hidden;
+  color: #fff;
+}
+
+#callWithVapi {
+  box-shadow: 0 0 0px 0px rgba(58,25,250,0.7);
+  transition: all 0.3s ease;
+}
+
+#callWithVapi:hover {
+  transform: scale(1.1);
+} 
