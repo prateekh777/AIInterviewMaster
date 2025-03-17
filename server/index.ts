@@ -68,10 +68,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 3007
-  // this serves both the API and the client
-  const WS_HOST = 'localhost';
-  const WS_PORT = 3007;
+  // Use port from environment variables with fallback
+  const WS_HOST = process.env.HOST || 'localhost';
+  const WS_PORT = process.env.PORT ? parseInt(process.env.PORT) : 5001;
   server.listen(WS_PORT, () => {
     log(`serving on port ${WS_PORT}`);
   });
