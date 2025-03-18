@@ -1,21 +1,31 @@
 // Utility functions for media recording
 
+// Export these types for consistency
+export type RecordingState = "inactive" | "recording" | "paused" | "stopping";
+
+// Add error types
+export interface MediaError extends Error {
+  name: string;
+  message: string;
+}
+
 // Start media stream
-export async function startMediaStream(): Promise<MediaStream> {
+export async function startMediaStream(constraints?: MediaStreamConstraints): Promise<MediaStream> {
+  const defaultConstraints = {
+    audio: true,
+    video: {
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      facingMode: 'user'
+    }
+  };
+
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        facingMode: 'user'
-      }
-    });
-    
+    const stream = await navigator.mediaDevices.getUserMedia(constraints || defaultConstraints);
     return stream;
   } catch (error) {
     console.error('Error accessing media devices:', error);
-    throw new Error(`Failed to access camera and microphone: ${error}`);
+    throw new MediaError(`Failed to access camera and microphone: ${error}`);
   }
 }
 

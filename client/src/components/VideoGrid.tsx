@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Camera, Settings } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import BackgroundSelector from "./BackgroundSelector";
+import { cn } from "@/lib/utils";
 
 interface VideoGridProps {
   localVideoRef: React.RefObject<HTMLVideoElement>;
@@ -14,7 +17,9 @@ interface VideoGridProps {
   videoTrackActive?: boolean;
   toggleMicrophone: () => void;
   toggleCamera: () => void;
-  startLocalStream?: () => Promise<MediaStream>;
+  startLocalStream?: () => Promise<void>;
+  onBackgroundChange?: (type: string, value?: string) => void;
+  interviewActive?: boolean;
 }
 
 export default function VideoGrid({ 
@@ -28,7 +33,9 @@ export default function VideoGrid({
   videoTrackActive = true,
   toggleMicrophone,
   toggleCamera,
-  startLocalStream
+  startLocalStream,
+  onBackgroundChange,
+  interviewActive = false
 }: VideoGridProps) {
   const [retrying, setRetrying] = useState<boolean>(false);
   
@@ -47,85 +54,71 @@ export default function VideoGrid({
   };
   const [aiAvatarUrl, setAiAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1568602471122-7832951cc4c5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80');
   
-  // Enable camera/mic when stream is available
+  // Update the useEffect for handling video stream
   useEffect(() => {
-    if (localStream && localVideoRef.current) {
+    console.log("VideoGrid effect triggered:", {
+      hasVideoRef: !!localVideoRef.current,
+      hasStream: !!localStream,
+      isCameraOff,
+      trackCount: localStream?.getTracks().length
+    });
+    
+    if (!localVideoRef.current) return;
+    
+    if (localStream && !isCameraOff) {
       console.log("Setting video stream to video element");
       
-      // Check if we need to update the video element
-      const currentStream = localVideoRef.current.srcObject as MediaStream;
-      if (currentStream !== localStream) {
-        localVideoRef.current.srcObject = localStream;
-        console.log("Updated video element with new stream");
-      }
+      // Always set the new stream
+      localVideoRef.current.srcObject = localStream;
+      console.log("Updated video element with new stream");
       
-      // Handle tracks being stopped outside this component
-      const handleTrackEnded = () => {
-        console.log("A track in the stream has ended");
-        // Ensure we update the UI when tracks are stopped
-        if (localVideoRef.current && !localStream.getTracks().some(track => track.readyState === 'live')) {
-          console.log("All tracks have ended, clearing video source");
-          localVideoRef.current.srcObject = null;
+      const playVideo = async () => {
+        try {
+          await localVideoRef.current?.play();
+          console.log("Video playback started successfully");
+        } catch (error) {
+          console.error("Error starting video playback:", error);
         }
       };
+
+      // Handle video events
+      const handleLoadedMetadata = () => {
+        console.log("Video metadata loaded successfully");
+        playVideo();
+      };
       
-      // Add ended event listeners to all tracks
+      const handleTrackEnded = () => {
+        console.log("Track ended, checking stream status");
+        if (localStream.getVideoTracks().length === 0) {
+          console.log("No video tracks available");
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = null;
+          }
+        }
+      };
+
+      // Add event listeners
+      localVideoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
       localStream.getTracks().forEach(track => {
         track.addEventListener('ended', handleTrackEnded);
       });
-      
-      // Add comprehensive event handlers for debugging and monitoring video stream
-      localVideoRef.current.onloadedmetadata = () => {
-        console.log("Video metadata loaded successfully");
-        // Start playing the video immediately once metadata is loaded
-        localVideoRef.current?.play().catch(err => {
-          console.error("Error playing video:", err);
+
+      // Cleanup function
+      return () => {
+        if (localVideoRef.current) {
+          localVideoRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        }
+        localStream.getTracks().forEach(track => {
+          track.removeEventListener('ended', handleTrackEnded);
         });
       };
-      
-      localVideoRef.current.oncanplay = () => {
-        console.log("Video can play now");
-      };
-      
-      localVideoRef.current.onplaying = () => {
-        console.log("Video playback has started");
-      };
-      
-      localVideoRef.current.onpause = () => {
-        console.log("Video playback paused - this should not happen");
-        // Auto resume if paused
-        if (localVideoRef.current && localStream.active) {
-          localVideoRef.current.play().catch(err => {
-            console.error("Error resuming paused video:", err);
-          });
-        }
-      };
-      
-      localVideoRef.current.onsuspend = () => {
-        console.log("Video loading suspended");
-      };
-      
-      localVideoRef.current.onstalled = () => {
-        console.log("Video playback stalled - attempting to recover");
-        // Try to recover by refreshing the stream connection
-        if (localVideoRef.current && localStream.active) {
-          localVideoRef.current.srcObject = null;
-          setTimeout(() => {
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = localStream;
-              localVideoRef.current.play().catch(err => {
-                console.error("Error recovering stalled video:", err);
-              });
-            }
-          }, 500);
-        }
-      };
-      
-      localVideoRef.current.onerror = (event) => {
-        console.error("Video element error:", event);
-      };
+    } else {
+      // Clear video element when camera is off
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
     }
-  }, [localStream]);
+  }, [localStream, isCameraOff]);
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -177,8 +170,31 @@ export default function VideoGrid({
             </div>
           )}
           
-          {/* No Stream State */}
-          {!localStream ? (
+          {/* Main Video Display - Simplified logic */}
+          {localStream ? (
+            <div className="relative w-full h-full">
+              {!isCameraOff ? (
+                <video 
+                  ref={localVideoRef} 
+                  className="w-full h-full object-cover"
+                  autoPlay 
+                  playsInline 
+                  muted
+                  loop={false}
+                  controls={false}
+                  disablePictureInPicture={true}
+                  disableRemotePlayback={true}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                  <div className="text-center">
+                    <VideoOff className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                    <p className="text-white text-sm">Camera is turned off</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
             <div className="text-center p-6">
               <VideoOff className="h-12 w-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-300 text-sm">Your camera will appear here</p>
@@ -194,90 +210,57 @@ export default function VideoGrid({
                 </Button>
               )}
             </div>
-          ) : (
-            <>
-              <video 
-                ref={localVideoRef} 
-                className="w-full h-full object-cover" 
-                autoPlay 
-                playsInline 
-                muted
-                loop={false}
-                controls={false}
-                disablePictureInPicture={true}
-                disableRemotePlayback={true}
-              />
-              
-              {/* Connection Status Overlay */}
-              {(!localStream.active || isCameraOff) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-                  <div className="text-center">
-                    <VideoOff className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-white text-sm mb-2">
-                      {isCameraOff ? "Camera is turned off" : "Video stream disconnected"}
-                    </p>
-                    {!isCameraOff && startLocalStream && (
-                      <Button 
-                        className="mt-2 bg-primary hover:bg-blue-600"
-                        size="sm"
-                        onClick={handleRetryCamera}
-                        disabled={retrying}
-                      >
-                        <Video className="h-4 w-4 mr-1" />
-                        {retrying ? "Reconnecting..." : "Reconnect Camera"}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
           )}
           
-          {/* Status Indicator */}
+          {/* Status Indicator - Simplified */}
           <div className="absolute bottom-3 left-3 flex items-center bg-gray-900 bg-opacity-75 px-2 py-0.5 rounded-md">
             <span className={`w-2 h-2 rounded-full mr-2 ${
-              recordingState === 'recording' 
-                ? 'bg-red-500 animate-pulse' 
-                : (localStream && videoTrackActive && !isCameraOff)
-                  ? 'bg-green-500'
-                  : isInitializing || retrying
-                    ? 'bg-amber-500 animate-pulse'
-                    : 'bg-gray-400'
+              isCameraOff ? 'bg-gray-400' :
+              interviewActive ? 'bg-green-500 animate-pulse' :
+              recordingState === 'recording' ? 'bg-red-500 animate-pulse' :
+              videoTrackActive ? 'bg-green-500' :
+              'bg-gray-400'
             }`}></span>
             <span className="text-white text-xs">
-              {isInitializing 
-                ? "Connecting..." 
-                : retrying 
-                  ? "Reconnecting..." 
-                  : recordingState === 'recording'
-                    ? "Recording"
-                    : localStream && !videoTrackActive && !isCameraOff
-                      ? "Camera Disconnected"
-                      : "You"}
+              {isCameraOff ? "Camera Off" :
+               interviewActive ? "Interview Active" :
+               recordingState === 'recording' ? "Recording" : "Ready"}
             </span>
           </div>
           
           {/* Camera Controls */}
           {localStream && (
-            <div className="absolute bottom-3 right-3 flex space-x-2">
+            <div className="absolute bottom-4 right-4 flex items-center space-x-2">
               <Button 
-                variant="ghost" 
-                size="icon" 
-                className="bg-gray-900 bg-opacity-75 text-white hover:bg-opacity-90" 
-                title={isMicMuted ? "Unmute microphone" : "Mute microphone"}
+                variant="secondary"
+                size="sm"
                 onClick={toggleMicrophone}
+                className={cn(isMicMuted && "bg-red-100 hover:bg-red-200")}
               >
-                {isMicMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                <Mic className={cn("h-4 w-4", isMicMuted && "text-red-500")} />
               </Button>
               <Button 
-                variant="ghost" 
-                size="icon" 
-                className="bg-gray-900 bg-opacity-75 text-white hover:bg-opacity-90"
-                title={isCameraOff ? "Enable camera" : "Disable camera"}
+                variant="secondary"
+                size="sm"
                 onClick={toggleCamera}
+                className={cn(isCameraOff && "bg-red-100 hover:bg-red-200")}
               >
-                {isCameraOff ? <VideoOff className="h-4 w-4" /> : <Video className="h-4 w-4" />}
+                <Camera className={cn("h-4 w-4", isCameraOff && "text-red-500")} />
               </Button>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="secondary" size="sm">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Background Settings</h4>
+                    <BackgroundSelector onBackgroundChange={onBackgroundChange} />
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
         </Card>

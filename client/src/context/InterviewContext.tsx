@@ -5,10 +5,10 @@ interface InterviewContextType {
   setJobDescription: (description: string) => void;
   skills: string[];
   setSkills: (skills: string[]) => void;
-  interviewType: string;
-  setInterviewType: (type: string) => void;
-  difficulty: string;
-  setDifficulty: (level: string) => void;
+  interviewType: "technical" | "behavioral" | "mixed";
+  setInterviewType: (type: "technical" | "behavioral" | "mixed") => void;
+  difficulty: "junior" | "mid-level" | "senior" | "lead";
+  setDifficulty: (level: "junior" | "mid-level" | "senior" | "lead") => void;
 }
 
 const InterviewContext = createContext<InterviewContextType | undefined>(undefined);
@@ -16,8 +16,8 @@ const InterviewContext = createContext<InterviewContextType | undefined>(undefin
 export function InterviewProvider({ children }: { children: ReactNode }) {
   const [jobDescription, setJobDescription] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
-  const [interviewType, setInterviewType] = useState("technical");
-  const [difficulty, setDifficulty] = useState("mid-level");
+  const [interviewType, setInterviewType] = useState<"technical" | "behavioral" | "mixed">("technical");
+  const [difficulty, setDifficulty] = useState<"junior" | "mid-level" | "senior" | "lead">("mid-level");
 
   return (
     <InterviewContext.Provider value={{

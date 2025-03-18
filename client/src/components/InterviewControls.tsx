@@ -1,14 +1,26 @@
 import { Button } from "@/components/ui/button";
-import { HelpCircle, Play, StopCircle } from "lucide-react";
+import { HelpCircle, Play, StopCircle, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface InterviewControlsProps {
   onStartInterview: () => void;
   onEndInterview: () => void;
   isActive: boolean;
+  disabled?: boolean;
+  isLoading?: boolean;
+  interviewType?: "technical" | "behavioral" | "mixed";
+  difficulty?: "junior" | "mid-level" | "senior" | "lead";
 }
 
-export default function InterviewControls({ onStartInterview, onEndInterview, isActive }: InterviewControlsProps) {
+export default function InterviewControls({ 
+  onStartInterview, 
+  onEndInterview, 
+  isActive, 
+  disabled, 
+  isLoading,
+  interviewType = 'technical',
+  difficulty = 'mid-level'
+}: InterviewControlsProps) {
   return (
     <div className="flex justify-between items-center">
       <div>
@@ -16,10 +28,14 @@ export default function InterviewControls({ onStartInterview, onEndInterview, is
           variant={isActive ? "outline" : "default"}
           className="flex items-center gap-2"
           onClick={onStartInterview}
-          disabled={isActive}
+          disabled={disabled || isActive || isLoading}
         >
-          <Play className="h-4 w-4" />
-          Start Interview
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+          {isLoading ? "Starting..." : "Start Interview"}
         </Button>
       </div>
       <div className="flex space-x-3">
@@ -32,9 +48,9 @@ export default function InterviewControls({ onStartInterview, onEndInterview, is
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Interview Help</DialogTitle>
+              <DialogTitle>{interviewType.charAt(0).toUpperCase() + interviewType.slice(1)} Interview</DialogTitle>
               <DialogDescription>
-                Tips for a successful AI interview
+                Tips for a successful {difficulty} level AI interview
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
