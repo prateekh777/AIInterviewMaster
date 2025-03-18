@@ -1,0 +1,129 @@
+<html>
+  <head>
+    <title>VAPI</title>
+    <meta charset="UTF-8" />
+
+    <style>
+      .vapi-btn {
+        position: "relative";
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        width: fit-content;
+        margin: 100px;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="log-action" onClick="logUserAction()">Log Action</button>
+
+    <script>
+      const assistant = ""; // Replace with your assistant ID
+      const apiKey = ""; // Replace with your API key
+
+      var vapiInstance = null;
+
+      const buttonConfig = {
+        position: "bottom-right", // "bottom" | "top" | "left" | "right" | "top-right" | "top-left" | "bottom-left" | "bottom-right"
+        offset: "10px", // decide how far the button should be from the edge
+        width: "200px", // min-width of the button
+        height: "50px", // height of the button
+        zIndex: 2147483647,
+        idle: {
+          // button state when the call is not active.
+          color: `rgb(76, 173, 47)`,
+          type: "pill", // or "round"
+          title: "Have a quick question?", // only required in case of Pill
+          subtitle: "Talk with our AI voicebot", // only required in case of pill
+          icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone.svg`,
+        },
+        loading: {
+          // button state when the call is connecting
+          color: `rgb(93, 124, 202)`,
+          type: "pill", // or "round"
+          title: "Connecting...", // only required in case of Pill
+          subtitle: "Please wait.", // only required in case of pill
+          icon: `https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg`,
+        },
+        active: {
+          // button state when the call is in progress or active.
+          color: `rgb(255, 0, 0)`,
+          type: "pill", // or "round"
+          title: "Call is in progress...", // only required in case of Pill
+          subtitle: "End the call.", // only required in case of pill
+          icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone-off.svg`,
+        },
+      };
+
+      (function (d, t) {
+        var g = document.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+        g.src =
+          "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
+        g.defer = true;
+        g.async = true;
+        s.parentNode.insertBefore(g, s);
+
+        g.onload = function () {
+          const vapi = window.vapiSDK.run({
+            apiKey: apiKey, // required
+            assistant: assistant, // required
+            config: buttonConfig, // optional
+          });
+
+          if (vapi) {
+            // Extend more using vapi
+            window.vapiSDK.vapi = vapi;
+            vapiInstance = vapi;
+
+            vapiInstance.on("speech-start", () => {
+              console.log("Speech has started");
+            });
+
+            vapiInstance.on("speech-end", () => {
+              console.log("Speech has ended");
+            });
+
+            vapiInstance.on("call-start", () => {
+              console.log("Call has started");
+            });
+
+            vapiInstance.on("call-end", () => {
+              console.log("Call has stopped");
+            });
+
+            vapiInstance.on("volume-level", (volume) => {
+              console.log(`Assistant volume level: ${volume}`);
+            });
+
+            // Function calls and transcripts will be sent via messages
+            vapiInstance.on("message", (message) => {
+              console.log(message);
+            });
+
+            vapiInstance.on("error", (e) => {
+              console.error(e);
+            });
+          }
+        };
+      })(document, "script");
+
+      function logUserAction() {
+        // Function to log the user action
+
+        if (window.vapiSDK.vapi)
+          window.vapiSDK.vapi.send({
+            type: "add-message",
+            message: {
+              role: "system",
+              content: "The user has pressed the button, say peanuts",
+            },
+          });
+        else {
+          console.log(window.vapiSDK, vapiInstance);
+        }
+      }
+    </script>
+  </body>
+</html>
