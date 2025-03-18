@@ -54,69 +54,85 @@ export default function VideoGrid({
   };
   const [aiAvatarUrl, setAiAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1568602471122-7832951cc4c5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80');
   
-  // Update the useEffect for handling video stream
+  // Consolidated camera state effect
   useEffect(() => {
-    console.log("VideoGrid effect triggered:", {
-      hasVideoRef: !!localVideoRef.current,
-      hasStream: !!localStream,
-      isCameraOff,
-      trackCount: localStream?.getTracks().length
-    });
-    
-    if (!localVideoRef.current) return;
-    
-    if (localStream && !isCameraOff) {
+    if (localStream && localVideoRef.current && !isCameraOff) {
       console.log("Setting video stream to video element");
       
-      // Always set the new stream
-      localVideoRef.current.srcObject = localStream;
-      console.log("Updated video element with new stream");
+      const currentStream = localVideoRef.current.srcObject as MediaStream;
+      if (currentStream !== localStream) {
+        localVideoRef.current.srcObject = localStream;
+        console.log("Updated video element with new stream");
+      }
       
-      const playVideo = async () => {
-        try {
-          await localVideoRef.current?.play();
-          console.log("Video playback started successfully");
-        } catch (error) {
-          console.error("Error starting video playback:", error);
-        }
-      };
-
-      // Handle video events
-      const handleLoadedMetadata = () => {
-        console.log("Video metadata loaded successfully");
-        playVideo();
-      };
-      
+      // Handle tracks being stopped outside this component
       const handleTrackEnded = () => {
-        console.log("Track ended, checking stream status");
-        if (localStream.getVideoTracks().length === 0) {
-          console.log("No video tracks available");
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = null;
-          }
+        console.log("A track in the stream has ended");
+        // Ensure we update the UI when tracks are stopped
+        if (localVideoRef.current && !localStream.getTracks().some(track => track.readyState === 'live')) {
+          console.log("All tracks have ended, clearing video source");
+          localVideoRef.current.srcObject = null;
         }
       };
-
-      // Add event listeners
-      localVideoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+      
+      // Add ended event listeners to all tracks
       localStream.getTracks().forEach(track => {
         track.addEventListener('ended', handleTrackEnded);
       });
-
-      // Cleanup function
-      return () => {
-        if (localVideoRef.current) {
-          localVideoRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        }
-        localStream.getTracks().forEach(track => {
-          track.removeEventListener('ended', handleTrackEnded);
+      
+      // Add comprehensive event handlers for debugging and monitoring video stream
+      localVideoRef.current.onloadedmetadata = () => {
+        console.log("Video metadata loaded successfully");
+        // Start playing the video immediately once metadata is loaded
+        localVideoRef.current?.play().catch(err => {
+          console.error("Error playing video:", err);
         });
       };
-    } else {
-      // Clear video element when camera is off
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
-      }
+      
+      localVideoRef.current.oncanplay = () => {
+        console.log("Video can play now");
+      };
+      
+      localVideoRef.current.onplaying = () => {
+        console.log("Video playback has started");
+      };
+      
+      localVideoRef.current.onpause = () => {
+        console.log("Video playback paused - this should not happen");
+        // Auto resume if paused
+        if (localVideoRef.current && localStream.active) {
+          localVideoRef.current.play().catch(err => {
+            console.error("Error resuming paused video:", err);
+          });
+        }
+      };
+      
+      localVideoRef.current.onsuspend = () => {
+        console.log("Video loading suspended");
+      };
+      
+      localVideoRef.current.onstalled = () => {
+        console.log("Video playback stalled - attempting to recover");
+        // Try to recover by refreshing the stream connection
+        if (localVideoRef.current && localStream.active) {
+          localVideoRef.current.srcObject = null;
+          setTimeout(() => {
+            if (localVideoRef.current) {
+              localVideoRef.current.srcObject = localStream;
+              localVideoRef.current.play().catch(err => {
+                console.error("Error recovering stalled video:", err);
+              });
+            }
+          }, 500);
+        }
+      };
+      
+      localVideoRef.current.onerror = (event) => {
+        console.error("Video element error:", event);
+      };
+    } else if (isCameraOff && localVideoRef.current) {
+      // Ensure video element is cleared when camera is off
+      localVideoRef.current.srcObject = null;
     }
   }, [localStream, isCameraOff]);
   
@@ -131,8 +147,12 @@ export default function VideoGrid({
             className="w-full h-full object-cover"
           />
           <div className="absolute bottom-3 left-3 flex items-center bg-gray-900 bg-opacity-75 px-2 py-0.5 rounded-md">
-            <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-            <span className="text-white text-xs">AI Interviewer</span>
+            <span className={`w-2 h-2 rounded-full mr-2 ${
+              isCameraOff || !interviewActive ? 'bg-gray-400' : 'bg-green-500'
+            }`}></span>
+            <span className="text-white text-xs">
+              {isCameraOff || !interviewActive ? 'Camera Off' : 'AI Interviewer'}
+            </span>
           </div>
         </div>
       </div>

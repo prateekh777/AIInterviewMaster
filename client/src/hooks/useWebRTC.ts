@@ -247,6 +247,7 @@ export function useWebRTC() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
-    }, [localStream])
+    }, [localStream]),
+    setIsCameraOff
   };
 }
