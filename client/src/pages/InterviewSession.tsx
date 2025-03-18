@@ -73,6 +73,7 @@ export default function InterviewSession() {
   };
 
   const handleTranscriptUpdate = (messages: any[]) => {
+    console.log('InterviewSession received transcript update:', messages);
     setTranscript(messages);
   };
 
@@ -85,43 +86,40 @@ export default function InterviewSession() {
           isActive={isActive}
         />
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
-          {/* Video Component */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <h2 className="text-lg font-medium mb-2">Your Camera</h2>
-              <VideoGrid 
-                localVideoRef={localVideoRef}
-                localStream={localStream}
-                recordingState={recordingState}
-                isMicMuted={isMicMuted}
-                isCameraOff={isCameraOff}
-                isInitializing={isInitializing}
-                streamError={streamError}
-                videoTrackActive={videoTrackActive}
-                toggleMicrophone={toggleMicrophone}
-                toggleCamera={toggleCamera}
-                startLocalStream={startLocalStream}
-              />
-            </div>
-          </div>
-
-          {/* Vapi AI Interviewer Component */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-4 h-full">
-              <h2 className="text-lg font-medium mb-2">AI Interviewer</h2>
-              <VapiInterviewer 
-                isActive={isActive}
-                onStart={handleStartInterview}
-                onEnd={handleEndInterview}
-                onTranscriptUpdate={handleTranscriptUpdate}
-              />
-            </div>
+        {/* Video Component - Now takes full width */}
+        <div className="mt-6">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h2 className="text-lg font-medium mb-2">Your Camera</h2>
+            <VideoGrid 
+              localVideoRef={localVideoRef}
+              localStream={localStream}
+              recordingState={recordingState}
+              isMicMuted={isMicMuted}
+              isCameraOff={isCameraOff}
+              isInitializing={isInitializing}
+              streamError={streamError}
+              videoTrackActive={videoTrackActive}
+              toggleMicrophone={toggleMicrophone}
+              toggleCamera={toggleCamera}
+              startLocalStream={startLocalStream}
+            />
           </div>
         </div>
 
+        {/* Keep VapiInterviewer but make it hidden */}
+        <div className="hidden">
+          <VapiInterviewer 
+            isActive={isActive}
+            onStart={handleStartInterview}
+            onEnd={handleEndInterview}
+            onTranscriptUpdate={handleTranscriptUpdate}
+          />
+        </div>
+
         {/* Transcript Display */}
-        <TranscriptDisplay messages={transcript} />
+        <div className="mt-6 w-full">
+          <TranscriptDisplay messages={transcript} />
+        </div>
       </div>
     </div>
   );
