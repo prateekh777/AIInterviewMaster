@@ -1,7 +1,7 @@
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "./components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import InterviewSetup from "@/pages/InterviewSetup";
@@ -10,7 +10,7 @@ import InterviewResults from "@/pages/InterviewResults";
 import InterviewRecording from "@/pages/InterviewRecording";
 import AdminDashboard from "@/pages/AdminDashboard";
 import ThankYou from "@/pages/ThankYou";
-import { InterviewProvider } from "./context/InterviewContext";
+import { InterviewProvider } from "@/context/InterviewContext";
 
 function Router() {
   return (
