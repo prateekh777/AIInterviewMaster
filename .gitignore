@@ -5,3 +5,4 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+client/src/lib/vapi-sdk/html-script-tag/dist
